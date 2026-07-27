@@ -55,10 +55,7 @@ defmodule BotArmyContentSynthesizer.Handlers.SynthesisHandler do
       {:ok, %Req.Response{status: 200, body: body}} ->
         case Jason.decode(body) do
           {:ok, %{"content" => [%{"text" => content}]}} ->
-            case Jason.decode(content) do
-              {:ok, decoded} -> {:ok, decoded}
-              _ -> {:error, "LLM response content was not valid JSON"}
-            end
+            parse_json_content(content)
 
           {:ok, response} ->
             {:error, "Unexpected LLM response format: #{inspect(response)}"}
@@ -75,8 +72,14 @@ defmodule BotArmyContentSynthesizer.Handlers.SynthesisHandler do
     end
   end
 
+  defp parse_json_content(content) do
+    case Jason.decode(content) do
+      {:ok, decoded} -> {:ok, decoded}
+      _ -> {:error, "LLM response content was not valid JSON"}
+    end
+  end
+
   defp render_prompt(vars) do
-    # Simple interpolation of the template
     Enum.reduce(vars, @prompt_template, fn {k, v}, acc ->
       String.replace(acc, "%{#{k}}", inspect(v))
     end)
