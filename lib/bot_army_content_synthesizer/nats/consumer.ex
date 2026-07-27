@@ -89,7 +89,6 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
     {:noreply, state, {:continue, :connect}}
   end
 
-  @impl true
   def handle_info({:msg, msg}, state) do
     BotArmyRuntime.Tracing.with_consumer_span(msg.topic, Map.get(msg, :headers), fn ->
       Logger.debug("Received NATS message on subject: #{msg.topic}")
@@ -98,6 +97,23 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
     end)
 
     {:noreply, state}
+  end
+
+  def handle_info({:nats, :disconnected}, state) do
+    Logger.warning("Disconnected from NATS, will reconnect")
+    Process.send_after(self(), :connect_retry, @reconnect_delay_ms)
+    {:noreply, %{state | subscriptions: [], conn: nil}}
+  end
+
+  @impl true
+  def handle_info({:nats, :connected}, state) do
+    Logger.info("Reconnected to NATS, re-subscribing")
+    {:noreply, state, {:continue, :connect}}
+  end
+
+  @impl true
+  def handle_info(:reconnect, state) do
+    {:noreply, state, {:continue, :connect}}
   end
 
   defp process_message(msg) do
@@ -126,24 +142,6 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
       {:error, reason} ->
         Logger.warning("Failed to decode message from #{msg.topic}: #{inspect(reason)}")
     end
-  end
-
-  @impl true
-  def handle_info({:nats, :disconnected}, state) do
-    Logger.warning("Disconnected from NATS, will reconnect")
-    Process.send_after(self(), :connect_retry, @reconnect_delay_ms)
-    {:noreply, %{state | subscriptions: [], conn: nil}}
-  end
-
-  @impl true
-  def handle_info({:nats, :connected}, state) do
-    Logger.info("Reconnected to NATS, re-subscribing")
-    {:noreply, state, {:continue, :connect}}
-  end
-
-  @impl true
-  def handle_info(:reconnect, state) do
-    {:noreply, state, {:continue, :connect}}
   end
 
   # Message routing

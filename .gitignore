@@ -1,0 +1,30 @@
+# Build artifacts
+_build/
+deps/
+*.beam
+*.app
+
+# Environment
+.env*
+
+# Mix
+mix.lock
+
+# Proof of validation
+.push-validated
+
+# Release marker
+.release-published
+
+# Editor and OS
+.DS_Store
+.vscode/
+*.swp
+*.swo
+*~
+
+# Crash dumps
+erl_crash.dump
+
+# Coverage
+cover/

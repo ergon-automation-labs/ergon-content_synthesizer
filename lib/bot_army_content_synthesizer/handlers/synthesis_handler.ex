@@ -46,8 +46,7 @@ defmodule BotArmyContentSynthesizer.Handlers.SynthesisHandler do
       |> render_prompt()
 
     # We use the bot's HTTP client to hit the llm_proxy
-    case BotArmyContentSynthesizer.HttpClient.post("/v1/messages", %{
-           # Default to a high-reasoning model
+    case BotArmyContentSynthesizer.HTTPClient.Req.post("/v1/messages", %{
            model: "claude-3-5-sonnet-20240620",
            messages: [%{role: "user", content: prompt}]
          }) do

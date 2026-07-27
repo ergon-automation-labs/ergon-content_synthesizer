@@ -50,6 +50,6 @@ defmodule BotArmyContentSynthesizer.HTTPClient.Req do
 
   @impl true
   def post(url, body, opts \\ []) do
-    Req.post(url, body, opts)
+    Req.post(url, [json: body] ++ opts)
   end
 end
