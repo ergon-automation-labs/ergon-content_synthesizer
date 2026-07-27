@@ -29,6 +29,7 @@ defmodule BotArmyContentSynthesizer.Application do
     Supervisor.start_link(children, opts)
   end
 
+  @dialyzer {:nowarn_function, maybe_add_repo: 1}
   defp maybe_add_repo(children) do
     if @env == :test do
       children
@@ -37,6 +38,7 @@ defmodule BotArmyContentSynthesizer.Application do
     end
   end
 
+  @dialyzer {:nowarn_function, maybe_add_pulse_publisher: 1}
   defp maybe_add_pulse_publisher(children) do
     if @env == :test do
       children
@@ -45,6 +47,7 @@ defmodule BotArmyContentSynthesizer.Application do
     end
   end
 
+  @dialyzer {:nowarn_function, maybe_add_workers: 1}
   defp maybe_add_workers(children) do
     if @env == :test do
       children
