@@ -36,7 +36,7 @@ defmodule BotArmyContentSynthesizer.PulsePublisher do
     started_at = DateTime.utc_now() |> DateTime.truncate(:second)
     send(self(), :publish_health)
     send(self(), :publish_pulse)
-    {:ok, %{started_at: started_at}}
+    {:ok, %{started_at: started_at, metrics: %{}}}
   end
 
   @impl true
@@ -48,31 +48,30 @@ defmodule BotArmyContentSynthesizer.PulsePublisher do
 
   @impl true
   def handle_info(:publish_pulse, state) do
-    Task.start(fn -> publish_pulse() end)
+    Task.start(fn -> publish_pulse(state) end)
     Process.send_after(self(), :publish_pulse, @publish_interval_ms)
     {:noreply, state}
   end
 
   @impl true
-  def handle_cast({:record_metric, _key, _value}, state) do
-    # TODO: Track metric in state for next pulse publish
-    {:noreply, state}
+  def handle_cast({:record_metric, key, value}, state) do
+    current_val = Map.get(state.metrics, key, 0)
+    new_metrics = Map.put(state.metrics, key, current_val + value)
+    {:noreply, %{state | metrics: new_metrics}}
   end
 
   # ============================================================================
   # Private Implementation
   # ============================================================================
 
-  defp publish_pulse do
-    signal = health_signal()
+  defp publish_pulse(state) do
+    signal = health_signal(state)
 
     pulse = %{
       service: @service_name,
       timestamp: DateTime.utc_now() |> DateTime.to_iso8601(),
       health: signal,
-      # TODO: Add domain-specific metrics here
-      # Examples: active_sessions, items_processed, errors_in_window
-      metrics: %{}
+      metrics: state.metrics
     }
 
     case BotArmyRuntime.NATS.Publisher.publish("bot.#{@service_name}.pulse", pulse) do
@@ -84,10 +83,12 @@ defmodule BotArmyContentSynthesizer.PulsePublisher do
     end
   end
 
-  defp publish_system_health(%{started_at: started_at}) do
+  defp publish_system_health(state) do
     tenant_id = System.get_env("BOT_ARMY_TENANT_ID") || BotArmyRuntime.Tenant.default_tenant_id()
-    signal = health_signal()
-    uptime_seconds = DateTime.diff(DateTime.utc_now() |> DateTime.truncate(:second), started_at, :second)
+    signal = health_signal(state)
+
+    uptime_seconds =
+      DateTime.diff(DateTime.utc_now() |> DateTime.truncate(:second), state.started_at, :second)
 
     case BotArmyRuntime.SynapseHealth.publish(
            source_node: node() |> Atom.to_string(),
@@ -105,12 +106,18 @@ defmodule BotArmyContentSynthesizer.PulsePublisher do
     end
   end
 
-  defp health_signal do
-    # TODO: Implement health signal logic based on domain metrics
-    # Examples:
-    #   - Return :critical if error_count > threshold
-    #   - Return :degraded if activity_count == 0
-    #   - Return :nominal otherwise
-    :nominal
+  defp health_signal(state) do
+    errors = Map.get(state.metrics, "synthesis_errors", 0)
+    total = Map.get(state.metrics, "total_processed", 0)
+
+    cond do
+      # Critical: Zero progress but multiple errors
+      total == 0 and errors > 0 -> :critical
+      # Degraded: Error rate > 20% of total attempts (min 5 attempts to avoid noise)
+      total >= 5 and errors / total > 0.2 -> :degraded
+      # Degraded: Zero activity for a while (can be added if we track a 'last_processed_at' timestamp)
+
+      true -> :nominal
+    end
   end
 end

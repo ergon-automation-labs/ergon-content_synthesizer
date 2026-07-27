@@ -32,7 +32,8 @@ defmodule BotArmyContentSynthesizer.HTTPClient do
   """
 
   @callback get(url :: String.t(), opts :: keyword()) :: {:ok, map()} | {:error, any()}
-  @callback get(url :: String.t()) :: {:ok, map()} | {:error, any()}
+  @callback post(url :: String.t(), body :: map(), opts :: keyword()) ::
+              {:ok, map()} | {:error, any()}
 end
 
 defmodule BotArmyContentSynthesizer.HTTPClient.Req do
@@ -45,5 +46,10 @@ defmodule BotArmyContentSynthesizer.HTTPClient.Req do
   @impl true
   def get(url, opts \\ []) do
     Req.get(url, opts)
+  end
+
+  @impl true
+  def post(url, body, opts \\ []) do
+    Req.post(url, body, opts)
   end
 end

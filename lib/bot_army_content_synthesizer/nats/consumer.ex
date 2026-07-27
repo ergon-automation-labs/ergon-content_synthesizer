@@ -18,9 +18,16 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
 
   # Register subjects with their metadata for runtime discovery
   @subjects [
-    # Add your subjects here:
-    # %{subject: "example.task.list", type: :request_reply, description: "List tasks"},
-    # %{subject: "example.event.>", type: :subscribe, description: "Example events"}
+    %{
+      subject: "system.wrong_turns.log",
+      type: :subscribe,
+      description: "Raw technical failures for synthesis"
+    },
+    %{
+      subject: "system.right_turns.log",
+      type: :subscribe,
+      description: "Success events for synthesis"
+    }
   ]
 
   def start_link(opts) do
@@ -47,22 +54,7 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
         BotArmyRuntime.NATS.Connection.subscribe_to_status()
         Logger.info("Connected to NATS, subscribing to topics")
 
-        subscriptions =
-          [
-            # Add your subjects here
-          ]
-          |> Enum.map(fn subject ->
-            case Gnat.sub(conn, self(), subject) do
-              {:ok, sub} ->
-                Logger.info("Subscribed to #{subject}")
-                sub
-
-              {:error, reason} ->
-                Logger.error("Failed to subscribe to #{subject}: #{inspect(reason)}")
-                nil
-            end
-          end)
-          |> Enum.filter(&(not is_nil(&1)))
+        subscriptions = subscribe_subjects(conn)
 
         # Register subjects for runtime discovery
         BotArmyRuntime.Registry.register("content_synthesizer", @subjects, @version)
@@ -76,6 +68,22 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
     end
   end
 
+  defp subscribe_subjects(conn) do
+    @subjects
+    |> Enum.map(fn %{subject: subject} ->
+      case Gnat.sub(conn, self(), subject) do
+        {:ok, sub} ->
+          Logger.info("Subscribed to #{subject}")
+          sub
+
+        {:error, reason} ->
+          Logger.error("Failed to subscribe to #{subject}: #{inspect(reason)}")
+          nil
+      end
+    end)
+    |> Enum.filter(&(not is_nil(&1)))
+  end
+
   @impl true
   def handle_info(:connect_retry, state) do
     {:noreply, state, {:continue, :connect}}
@@ -86,28 +94,38 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
     BotArmyRuntime.Tracing.with_consumer_span(msg.topic, Map.get(msg, :headers), fn ->
       Logger.debug("Received NATS message on subject: #{msg.topic}")
 
-      # Handle request/reply patterns
-      if msg.reply_to do
-        case msg.topic do
-          # Add your request/reply handlers here
-          # "example.task.list" ->
-          #   handle_task_list(msg, state)
-          _ ->
-            Logger.debug("Unknown request/reply subject: #{msg.topic}")
-        end
-      else
-        # Handle pub/sub messages
-        case BotArmyCore.NATS.Decoder.decode(msg.body) do
-          {:ok, decoded_message} ->
-            route_message(decoded_message, msg.topic)
-
-          {:error, reason} ->
-            Logger.warning("Failed to decode message from #{msg.topic}: #{inspect(reason)}")
-        end
-      end
+      process_message(msg)
     end)
 
     {:noreply, state}
+  end
+
+  defp process_message(msg) do
+    if msg.reply_to do
+      handle_request_reply(msg)
+    else
+      handle_pub_sub(msg)
+    end
+  end
+
+  defp handle_request_reply(msg) do
+    case msg.topic do
+      # Add your request/reply handlers here
+      # "example.task.list" ->
+      #   handle_task_list(msg)
+      _ ->
+        Logger.debug("Unknown request/reply subject: #{msg.topic}")
+    end
+  end
+
+  defp handle_pub_sub(msg) do
+    case BotArmyCore.NATS.Decoder.decode(msg.body) do
+      {:ok, decoded_message} ->
+        route_message(decoded_message, msg.topic)
+
+      {:error, reason} ->
+        Logger.warning("Failed to decode message from #{msg.topic}: #{inspect(reason)}")
+    end
   end
 
   @impl true
@@ -132,6 +150,17 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
   defp route_message(message, topic) do
     # Route decoded messages to appropriate handlers
     Logger.debug("Routing message from #{topic}")
+
+    case topic do
+      "system.wrong_turns.log" ->
+        BotArmyContentSynthesizer.Handlers.SynthesisHandler.handle_event(:wrong_turn, message)
+
+      "system.right_turns.log" ->
+        BotArmyContentSynthesizer.Handlers.SynthesisHandler.handle_event(:right_turn, message)
+
+      _ ->
+        Logger.debug("No handler for topic: #{topic}")
+    end
   end
 
   # Request/reply handlers
