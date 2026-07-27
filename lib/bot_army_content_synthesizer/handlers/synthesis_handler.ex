@@ -26,6 +26,7 @@ defmodule BotArmyContentSynthesizer.Handlers.SynthesisHandler do
   Return the result as a JSON object with keys: 'punchy', 'philosophical', 'dev_log'.
   """
 
+  @spec handle_event(atom(), map()) :: {:ok, atom()} | {:error, any()}
   def handle_event(type, payload) do
     Logger.info("[Synthesis] Processing #{type} event...")
 
@@ -40,6 +41,7 @@ defmodule BotArmyContentSynthesizer.Handlers.SynthesisHandler do
     end
   end
 
+  @spec synthesize_insight(atom(), map()) :: {:ok, map()} | {:error, any()}
   defp synthesize_insight(type, payload) do
     prompt =
       %{type: type, data: payload}
@@ -50,14 +52,23 @@ defmodule BotArmyContentSynthesizer.Handlers.SynthesisHandler do
            model: "claude-3-5-sonnet-20240620",
            messages: [%{role: "user", content: prompt}]
          }) do
-      {:ok, %{"data" => data}} ->
-        # The proxy usually returns a complex object, we want the content of the first message
-        content = data["content"][0]["text"]
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        case Jason.decode(body) do
+          {:ok, %{"content" => [%{"text" => content}]}} ->
+            case Jason.decode(content) do
+              {:ok, decoded} -> {:ok, decoded}
+              _ -> {:error, "LLM response content was not valid JSON"}
+            end
 
-        case Jason.decode(content) do
-          {:ok, decoded} -> {:ok, decoded}
-          _ -> {:error, "LLM response was not valid JSON"}
+          {:ok, response} ->
+            {:error, "Unexpected LLM response format: #{inspect(response)}"}
+
+          {:error, reason} ->
+            {:error, "Failed to decode LLM response: #{inspect(reason)}"}
         end
+
+      {:ok, %Req.Response{status: status, body: body}} ->
+        {:error, "LLM proxy returned status #{status}: #{inspect(body)}"}
 
       {:error, reason} ->
         {:error, reason}
@@ -72,7 +83,6 @@ defmodule BotArmyContentSynthesizer.Handlers.SynthesisHandler do
   end
 
   defp send_to_inbox(drafts) do
-    # Send to the BotArmyInbox system
     payload = %{
       "tenant_id" => "default",
       "user_id" => "abby",
@@ -82,14 +92,13 @@ defmodule BotArmyContentSynthesizer.Handlers.SynthesisHandler do
       "metadata" => drafts
     }
 
-    # Use the runtime NATS connection to publish the a-priori request
-    case BotArmyLibraryRuntime.NATS.Connection.get_connection() do
-      {:ok, conn} ->
-        Gnat.pub(conn, "inbox.message.create", Jason.encode!(payload))
-        Logger.info("[Synthesis] Drafts delivered to Unified Inbox.")
-
-      {:error, reason} ->
-        Logger.error("[Synthesis] Failed to deliver to inbox: #{inspect(reason)}")
+    try do
+      conn = GenServer.call(BotArmyLibraryRuntime.NATS.Connection, :get_connection)
+      Gnat.pub(conn, "inbox.message.create", Jason.encode!(payload))
+      Logger.info("[Synthesis] Drafts delivered to Unified Inbox.")
+    rescue
+      e ->
+        Logger.error("[Synthesis] Failed to deliver to inbox: #{inspect(e)}")
     end
   end
 end

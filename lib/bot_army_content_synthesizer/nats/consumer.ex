@@ -49,15 +49,15 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
 
   @impl true
   def handle_continue(:connect, state) do
-    case GenServer.call(BotArmyRuntime.NATS.Connection, :get_connection, 5000) do
+    case GenServer.call(BotArmyLibraryRuntime.NATS.Connection, :get_connection, 5000) do
       {:ok, conn} ->
-        BotArmyRuntime.NATS.Connection.subscribe_to_status()
+        BotArmyLibraryRuntime.NATS.Connection.subscribe_to_status()
         Logger.info("Connected to NATS, subscribing to topics")
 
         subscriptions = subscribe_subjects(conn)
 
         # Register subjects for runtime discovery
-        BotArmyRuntime.Registry.register("content_synthesizer", @subjects, @version)
+        BotArmyLibraryRuntime.Registry.register("content_synthesizer", @subjects, @version)
 
         {:noreply, %{state | subscriptions: subscriptions, conn: conn}}
 
@@ -90,12 +90,8 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
   end
 
   def handle_info({:msg, msg}, state) do
-    BotArmyRuntime.Tracing.with_consumer_span(msg.topic, Map.get(msg, :headers), fn ->
-      Logger.debug("Received NATS message on subject: #{msg.topic}")
-
-      process_message(msg)
-    end)
-
+    Logger.debug("Received NATS message on subject: #{msg.topic}")
+    process_message(msg)
     {:noreply, state}
   end
 
@@ -135,7 +131,7 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
   end
 
   defp handle_pub_sub(msg) do
-    case BotArmyCore.NATS.Decoder.decode(msg.body) do
+    case BotArmyLibraryCore.NATS.Decoder.decode(msg.body) do
       {:ok, decoded_message} ->
         route_message(decoded_message, msg.topic)
 

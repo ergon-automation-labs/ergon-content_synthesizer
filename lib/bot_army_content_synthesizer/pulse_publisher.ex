@@ -74,7 +74,7 @@ defmodule BotArmyContentSynthesizer.PulsePublisher do
       metrics: state.metrics
     }
 
-    case BotArmyRuntime.NATS.Publisher.publish("bot.#{@service_name}.pulse", pulse) do
+    case BotArmyLibraryRuntime.NATS.Publisher.publish("bot.#{@service_name}.pulse", pulse) do
       {:ok, _} ->
         Logger.debug("[PulsePublisher] Published pulse: #{signal}")
 
@@ -84,20 +84,20 @@ defmodule BotArmyContentSynthesizer.PulsePublisher do
   end
 
   defp publish_system_health(state) do
-    tenant_id = System.get_env("BOT_ARMY_TENANT_ID") || BotArmyRuntime.Tenant.default_tenant_id()
     signal = health_signal(state)
 
     uptime_seconds =
       DateTime.diff(DateTime.utc_now() |> DateTime.truncate(:second), state.started_at, :second)
 
-    case BotArmyRuntime.SynapseHealth.publish(
-           source_node: node() |> Atom.to_string(),
-           triggered_by: @envelope_source,
-           service: @service_name,
-           tenant_id: tenant_id,
-           health_signal: signal,
-           uptime_seconds: max(uptime_seconds, 0)
-         ) do
+    health_event = %{
+      "source_node" => node() |> Atom.to_string(),
+      "triggered_by" => @envelope_source,
+      "service" => @service_name,
+      "health_signal" => signal,
+      "uptime_seconds" => max(uptime_seconds, 0)
+    }
+
+    case BotArmyLibraryRuntime.NATS.Publisher.publish("system.health", health_event) do
       {:ok, _} ->
         Logger.debug("[PulsePublisher] Published system.health: #{signal}")
 
