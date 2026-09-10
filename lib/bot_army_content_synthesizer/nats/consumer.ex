@@ -6,8 +6,8 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
   Uses standardized Reply format for request/reply patterns.
 
   All request/reply handlers should return responses using Reply helpers:
-  - BotArmyRuntime.NATS.Reply.ok(data) for success
-  - BotArmyRuntime.NATS.Reply.error(message, code) for errors
+  - BotArmyLibraryRuntime.NATS.Reply.ok(data) for success
+  - BotArmyLibraryRuntime.NATS.Reply.error(message, code) for errors
   """
 
   use GenServer
@@ -162,10 +162,10 @@ defmodule BotArmyContentSynthesizer.NATS.Consumer do
   #   response =
   #     case get_tasks() do
   #       {:ok, tasks} ->
-  #         BotArmyRuntime.NATS.Reply.ok(%{"tasks" => tasks})
+  #         BotArmyLibraryRuntime.NATS.Reply.ok(%{"tasks" => tasks})
   #
   #       {:error, reason} ->
-  #         BotArmyRuntime.NATS.Reply.error(inspect(reason), :list_failed)
+  #         BotArmyLibraryRuntime.NATS.Reply.error(inspect(reason), :list_failed)
   #     end
   #
   #   if state.conn do

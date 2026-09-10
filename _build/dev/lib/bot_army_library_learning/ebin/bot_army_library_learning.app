@@ -1,5 +1,5 @@
 {application,bot_army_library_learning,
-             [{config_mtime,1785096259},
+             [{config_mtime,1788388154},
               {optional_applications,[]},
               {applications,[kernel,stdlib,elixir,logger,
                              bot_army_library_core,bot_army_library_runtime,
@@ -15,6 +15,7 @@
                         'Elixir.BotArmyLibraryLearning.Handlers.CardHandler',
                         'Elixir.BotArmyLibraryLearning.Handlers.SessionHandler',
                         'Elixir.BotArmyLibraryLearning.NATS.Consumer',
+                        'Elixir.BotArmyLibraryLearning.NATS.HealthResponder',
                         'Elixir.BotArmyLibraryLearning.NATS.Publisher',
                         'Elixir.BotArmyLibraryLearning.OutcomeTracker',
                         'Elixir.BotArmyLibraryLearning.Personality',
@@ -38,5 +39,5 @@
                         'Elixir.Mix.Tasks.Learning.Deck.New',
                         'Elixir.Mix.Tasks.Learning.Stats']},
               {registered,[]},
-              {vsn,"0.1.30"},
+              {vsn,"0.1.44"},
               {mod,{'Elixir.BotArmyLibraryLearning.Application',[]}}]}.

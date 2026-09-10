@@ -1,5 +1,5 @@
 {application,bot_army_content_synthesizer,
-             [{config_mtime,1785160302},
+             [{config_mtime,1788387735},
               {optional_applications,[]},
               {applications,[kernel,stdlib,elixir,logger,
                              bot_army_library_core,bot_army_library_runtime,
@@ -14,5 +14,5 @@
                         'Elixir.BotArmyContentSynthesizer.PulsePublisher',
                         'Elixir.BotArmyContentSynthesizer.Repo']},
               {registered,[]},
-              {vsn,"0.1.1"},
+              {vsn,"0.1.7"},
               {mod,{'Elixir.BotArmyContentSynthesizer.Application',[]}}]}.
