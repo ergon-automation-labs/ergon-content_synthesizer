@@ -66,9 +66,6 @@ deps:
 test:
 	$(MIX) test
 
-credo:
-	$(MIX) credo
-
 dialyzer: deps
 	$(MIX) dialyzer
 
@@ -156,14 +153,6 @@ publish-release: release
 	echo "1. If this bot's ci_engine is 'nats' (pillar/common.sls in bot_army_infra), deploy_pipeline_bot deploys it automatically."; \
 	echo "2. Otherwise: make deploy-bot, or wait for Jenkins polling"; \
 	echo "3. Check status: make jenkins-logs (Jenkins) or watch ops.deploy.* on NATS (deploy_pipeline_bot path)"
-
-git-push:
-	@echo "Running validation (test → compile → credo)..."
-	@$(MAKE) test credo
-	@$(MIX) compile
-	@echo "✓ All checks passed. Creating proof file..."
-	@echo "$$(date +%s)" > .push-validated
-	@git push
 
 push-and-publish:
 	@git push && $(MAKE) publish-release
